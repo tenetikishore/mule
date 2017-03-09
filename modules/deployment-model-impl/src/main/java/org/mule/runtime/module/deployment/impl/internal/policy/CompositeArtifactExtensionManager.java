@@ -10,6 +10,7 @@ package org.mule.runtime.module.deployment.impl.internal.policy;
 import static java.lang.String.format;
 import static org.mule.runtime.api.util.Preconditions.checkArgument;
 import org.mule.runtime.api.meta.model.ExtensionModel;
+import org.mule.runtime.api.meta.model.config.ConfigurationModel;
 import org.mule.runtime.core.api.Event;
 import org.mule.runtime.core.api.extension.ExtensionManager;
 import org.mule.runtime.extension.api.manifest.ExtensionManifest;
@@ -75,9 +76,10 @@ public class CompositeArtifactExtensionManager implements ExtensionManager {
   }
 
   @Override
-  public ConfigurationInstance getConfiguration(ExtensionModel extensionModel, Event event) {
+  public ConfigurationInstance getConfiguration(ExtensionModel extensionModel, ConfigurationModel configurationModel,
+                                                Event event) {
 
-    Optional<ConfigurationProvider> provider = getConfigurationProvider(extensionModel);
+    Optional<ConfigurationProvider> provider = getConfigurationProvider(extensionModel, configurationModel);
     if (provider.isPresent()) {
       return provider.get().get(event);
     }
@@ -88,11 +90,13 @@ public class CompositeArtifactExtensionManager implements ExtensionManager {
   }
 
   @Override
-  public Optional<ConfigurationProvider> getConfigurationProvider(ExtensionModel extensionModel) {
-    Optional<ConfigurationProvider> configurationProvider = childExtensionManager.getConfigurationProvider(extensionModel);
+  public Optional<ConfigurationProvider> getConfigurationProvider(ExtensionModel extensionModel,
+                                                                  ConfigurationModel configurationModel) {
+    Optional<ConfigurationProvider> configurationProvider =
+        childExtensionManager.getConfigurationProvider(extensionModel, configurationModel);
 
     if (!configurationProvider.isPresent()) {
-      configurationProvider = parentExtensionManager.getConfigurationProvider(extensionModel);
+      configurationProvider = parentExtensionManager.getConfigurationProvider(extensionModel, configurationModel);
     }
 
     return configurationProvider;

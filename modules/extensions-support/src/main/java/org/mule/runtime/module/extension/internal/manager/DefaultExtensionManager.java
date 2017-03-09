@@ -7,14 +7,15 @@
 
 package org.mule.runtime.module.extension.internal.manager;
 
+import static java.lang.String.format;
 import static org.mule.runtime.api.i18n.I18nMessageFactory.createStaticMessage;
 import static org.mule.runtime.api.util.Preconditions.checkArgument;
 import static org.mule.runtime.core.api.lifecycle.LifecycleUtils.disposeIfNeeded;
 import static org.mule.runtime.core.api.lifecycle.LifecycleUtils.stopIfNeeded;
 import static org.mule.runtime.core.util.ClassUtils.withContextClassLoader;
+import static org.mule.runtime.module.extension.internal.loader.utils.ImplicitObjectUtils.canBeUsedImplicitly;
 import static org.mule.runtime.module.extension.internal.manager.DefaultConfigurationExpirationMonitor.Builder.newBuilder;
 import static org.mule.runtime.module.extension.internal.util.MuleExtensionUtils.getClassLoader;
-
 import org.mule.runtime.api.exception.MuleException;
 import org.mule.runtime.api.exception.MuleRuntimeException;
 import org.mule.runtime.api.lifecycle.Initialisable;
@@ -22,6 +23,7 @@ import org.mule.runtime.api.lifecycle.InitialisationException;
 import org.mule.runtime.api.lifecycle.Startable;
 import org.mule.runtime.api.lifecycle.Stoppable;
 import org.mule.runtime.api.meta.model.ExtensionModel;
+import org.mule.runtime.api.meta.model.config.ConfigurationModel;
 import org.mule.runtime.core.api.Event;
 import org.mule.runtime.core.api.MuleContext;
 import org.mule.runtime.core.api.context.MuleContextAware;
@@ -41,7 +43,7 @@ import org.mule.runtime.module.extension.internal.runtime.exception.TooManyConfi
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -137,37 +139,43 @@ public final class DefaultExtensionManager implements ExtensionManager, MuleCont
   @Override
   public ConfigurationInstance getConfiguration(String configurationProviderName, Event muleEvent) {
     return getConfigurationProvider(configurationProviderName).map(provider -> provider.get(muleEvent))
-        .orElseThrow(() -> new IllegalArgumentException(String
-            .format(
-                    "There is no registered configurationProvider under name '%s'",
-                    configurationProviderName)));
+        .orElseThrow(() -> new IllegalArgumentException(
+                                                        format(
+                                                               "There is no registered configurationProvider under name '%s'",
+                                                               configurationProviderName)));
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public ConfigurationInstance getConfiguration(ExtensionModel extensionModel, Event muleEvent) {
-    Optional<ConfigurationProvider> provider = getConfigurationProvider(extensionModel);
+  public ConfigurationInstance getConfiguration(ExtensionModel extensionModel, ConfigurationModel configurationModel,
+                                                Event muleEvent) {
+    Optional<ConfigurationProvider> provider = getConfigurationProvider(extensionModel, configurationModel);
     if (provider.isPresent()) {
       return provider.get().get(muleEvent);
     }
 
-    createImplicitConfiguration(extensionModel, muleEvent);
-    return getConfiguration(extensionModel, muleEvent);
+    if (canBeUsedImplicitly(configurationModel)) {
+      createImplicitConfiguration(extensionModel, configurationModel, muleEvent);
+      return getConfiguration(extensionModel, configurationModel, muleEvent);
+    }
+
+    throw new IllegalStateException(format("Configuration '%s' cannot be used implicitly", configurationModel.getName()));
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public Optional<ConfigurationProvider> getConfigurationProvider(ExtensionModel extensionModel) {
-    List<ConfigurationProvider> providers = extensionRegistry.getConfigurationProviders(extensionModel);
+  public Optional<ConfigurationProvider> getConfigurationProvider(ExtensionModel extensionModel,
+                                                                  ConfigurationModel configurationModel) {
+    Collection<ConfigurationProvider> providers = extensionRegistry.getConfigurationProviders(extensionModel, configurationModel);
 
     int matches = providers.size();
 
     if (matches == 1) {
-      return Optional.of(providers.get(0));
+      return providers.stream().findFirst();
     } else if (matches > 1) {
       throw new TooManyConfigsException("Too many configs found", extensionModel, matches);
     }
@@ -184,11 +192,13 @@ public final class DefaultExtensionManager implements ExtensionManager, MuleCont
     return extensionRegistry.getConfigurationProvider(configurationProviderName);
   }
 
-  private void createImplicitConfiguration(ExtensionModel extensionModel, Event muleEvent) {
+  private void createImplicitConfiguration(ExtensionModel extensionModel, ConfigurationModel implicitConfigurationModel,
+                                           Event muleEvent) {
     synchronized (extensionModel) {
       // check that another thread didn't beat us to create the instance
-      if (extensionRegistry.getConfigurationProviders(extensionModel).isEmpty()) {
+      if (extensionRegistry.getConfigurationProviders(extensionModel, implicitConfigurationModel).isEmpty()) {
         registerConfigurationProvider(implicitConfigurationProviderFactory.createImplicitConfigurationProvider(extensionModel,
+                                                                                                               implicitConfigurationModel,
                                                                                                                muleEvent,
                                                                                                                muleContext));
       }
@@ -235,8 +245,8 @@ public final class DefaultExtensionManager implements ExtensionManager, MuleCont
       stopIfNeeded(configuration);
       disposeIfNeeded(configuration, LOGGER);
     } catch (Exception e) {
-      LOGGER.error(String.format("Could not dispose expired dynamic config of key '%s' and type %s", key,
-                                 configuration.getClass().getName()),
+      LOGGER.error(format("Could not dispose expired dynamic config of key '%s' and type %s", key,
+                          configuration.getClass().getName()),
                    e);
     }
   }

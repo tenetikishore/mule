@@ -8,7 +8,6 @@ package org.mule.runtime.module.extension.internal.runtime.config;
 
 import static org.mule.runtime.extension.api.util.ExtensionModelUtils.getConnectedComponents;
 import static org.mule.runtime.module.extension.internal.loader.utils.ImplicitObjectUtils.buildImplicitResolverSet;
-import static org.mule.runtime.module.extension.internal.loader.utils.ImplicitObjectUtils.getFirstImplicit;
 import org.mule.runtime.api.exception.MuleException;
 import org.mule.runtime.api.exception.MuleRuntimeException;
 import org.mule.runtime.api.meta.model.ExtensionModel;
@@ -37,10 +36,9 @@ public final class DefaultImplicitConfigurationProviderFactory implements Implic
    */
   @Override
   public ConfigurationProvider createImplicitConfigurationProvider(ExtensionModel extensionModel,
+                                                                   ConfigurationModel implicitConfigurationModel,
                                                                    Event event,
                                                                    MuleContext muleContext) {
-    ConfigurationModel implicitConfigurationModel = getFirstImplicit(extensionModel.getConfigurationModels());
-
     if (implicitConfigurationModel == null) {
       throw new IllegalStateException(String.format(
                                                     "Could not find a config for extension '%s' and none can be created automatically. Please define one",

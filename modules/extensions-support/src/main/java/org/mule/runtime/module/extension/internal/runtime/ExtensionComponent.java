@@ -14,7 +14,7 @@ import static org.mule.runtime.api.metadata.resolving.MetadataFailure.Builder.ne
 import static org.mule.runtime.api.metadata.resolving.MetadataResult.failure;
 import static org.mule.runtime.core.util.ClassUtils.withContextClassLoader;
 import static org.mule.runtime.core.util.TemplateParser.createMuleStyleParser;
-import static org.mule.runtime.extension.api.util.ExtensionModelUtils.requiresConfig;
+import static org.mule.runtime.extension.api.util.ExtensionModelUtils.getConfigurationFromComponent;
 import static org.mule.runtime.extension.api.util.NameUtils.hyphenize;
 import static org.mule.runtime.module.extension.internal.util.MuleExtensionUtils.getClassLoader;
 import static org.mule.runtime.module.extension.internal.util.MuleExtensionUtils.getInitialiserEvent;
@@ -23,8 +23,10 @@ import org.mule.runtime.api.connection.ConnectionException;
 import org.mule.runtime.api.exception.MuleException;
 import org.mule.runtime.api.lifecycle.InitialisationException;
 import org.mule.runtime.api.lifecycle.Lifecycle;
+import org.mule.runtime.api.meta.AbstractAnnotatedObject;
 import org.mule.runtime.api.meta.model.ComponentModel;
 import org.mule.runtime.api.meta.model.ExtensionModel;
+import org.mule.runtime.api.meta.model.config.ConfigurationModel;
 import org.mule.runtime.api.metadata.MetadataContext;
 import org.mule.runtime.api.metadata.MetadataKey;
 import org.mule.runtime.api.metadata.MetadataKeyProvider;
@@ -35,7 +37,6 @@ import org.mule.runtime.api.metadata.descriptor.ComponentMetadataDescriptor;
 import org.mule.runtime.api.metadata.resolving.FailureCode;
 import org.mule.runtime.api.metadata.resolving.MetadataResult;
 import org.mule.runtime.api.util.LazyValue;
-import org.mule.runtime.api.meta.AbstractAnnotatedObject;
 import org.mule.runtime.core.api.DefaultMuleException;
 import org.mule.runtime.core.api.Event;
 import org.mule.runtime.core.api.MuleContext;
@@ -43,11 +44,11 @@ import org.mule.runtime.core.api.construct.FlowConstruct;
 import org.mule.runtime.core.api.construct.FlowConstructAware;
 import org.mule.runtime.core.api.context.MuleContextAware;
 import org.mule.runtime.core.api.extension.ExtensionManager;
-import org.mule.runtime.core.streaming.StreamingManager;
-import org.mule.runtime.core.streaming.bytes.CursorStreamProviderFactory;
 import org.mule.runtime.core.internal.connection.ConnectionManagerAdapter;
 import org.mule.runtime.core.internal.metadata.DefaultMetadataContext;
 import org.mule.runtime.core.internal.metadata.MuleMetadataService;
+import org.mule.runtime.core.streaming.StreamingManager;
+import org.mule.runtime.core.streaming.bytes.CursorStreamProviderFactory;
 import org.mule.runtime.core.util.TemplateParser;
 import org.mule.runtime.extension.api.declaration.type.ExtensionsTypeLoaderFactory;
 import org.mule.runtime.extension.api.exception.IllegalModelDefinitionException;
@@ -87,7 +88,7 @@ public abstract class ExtensionComponent<T extends ComponentModel<T>> extends Ab
   private final ConfigurationProvider configurationProvider;
   private final MetadataMediator<T> metadataMediator;
   private final ClassTypeLoader typeLoader;
-  private final LazyValue<Boolean> requiresConfig = new LazyValue<>(this::computeRequiresConfig);
+  private final LazyValue<Optional<ConfigurationModel>> configurationModel = new LazyValue<>(this::computeConfig);
   protected final ClassLoader classLoader;
 
   private CursorStreamProviderFactory cursorStreamProviderFactory;
@@ -305,21 +306,21 @@ public abstract class ExtensionComponent<T extends ComponentModel<T>> extends Ab
    * @return a configuration instance for the current component with a given {@link Event}
    */
   protected Optional<ConfigurationInstance> getConfiguration(Event event) {
-    if (!requiresConfig.get()) {
+    if (!configurationModel.get().isPresent()) {
       return empty();
     }
 
     if (isConfigurationSpecified()) {
       return findConfigurationProvider()
-          .map(provider -> Optional.of(provider.get(event)))
+          .map(provider -> Optional.ofNullable(provider.get(event)))
           .orElseThrow(() -> new IllegalModelDefinitionException(format(
                                                                         "Flow '%s' contains a reference to config '%s' but it doesn't exists",
                                                                         flowConstruct.getName(), configurationProvider)));
     }
 
-    return Optional.of(getConfigurationProviderByModel()
+    return Optional.ofNullable(getConfigurationProviderByModel(configurationModel.get().get())
         .map(provider -> provider.get(event))
-        .orElseGet(() -> extensionManager.getConfiguration(extensionModel, event)));
+        .orElseGet(() -> extensionManager.getConfiguration(extensionModel, configurationModel.get().get(), event)));
   }
 
   protected CursorStreamProviderFactory getCursorStreamProviderFactory() {
@@ -327,22 +328,22 @@ public abstract class ExtensionComponent<T extends ComponentModel<T>> extends Ab
   }
 
   private Optional<ConfigurationProvider> findConfigurationProvider() {
-    if (requiresConfig.get()) {
+    if (configurationModel.get().isPresent()) {
       return isConfigurationSpecified()
           ? of(configurationProvider)
-          : getConfigurationProviderByModel();
+          : getConfigurationProviderByModel(configurationModel.get().get());
     }
 
     return empty();
   }
 
-  private boolean computeRequiresConfig() {
-    return requiresConfig(extensionModel, componentModel);
+  private Optional<ConfigurationModel> computeConfig() {
+    return getConfigurationFromComponent(extensionModel, componentModel);
   }
 
-  private Optional<ConfigurationProvider> getConfigurationProviderByModel() {
+  private Optional<ConfigurationProvider> getConfigurationProviderByModel(ConfigurationModel configurationModel) {
     try {
-      return extensionManager.getConfigurationProvider(extensionModel);
+      return extensionManager.getConfigurationProvider(extensionModel, configurationModel);
     } catch (TooManyConfigsException e) {
       throw new IllegalStateException(format(
                                              "No config-ref was specified for component '%s' of extension '%s', but %d are registered. Please specify which to use",

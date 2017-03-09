@@ -93,22 +93,24 @@ public interface ExtensionManager {
    * updated for the returned {@link ConfigurationInstance}
    *
    * @param extensionModel the {@link ExtensionModel} for which a configuration is wanted
-   * @param event the current Event
+   * @param configurationModel the {@link ConfigurationModel} associated to the {@link ConfigurationInstance}
+   * @param muleEvent the current Event
    * @return a {@link ConfigurationInstance}
    * @throws IllegalStateException if none or too many {@link ConfigurationProvider} are found to be suitable
    */
-  ConfigurationInstance getConfiguration(ExtensionModel extensionModel, Event event);
+  ConfigurationInstance getConfiguration(ExtensionModel extensionModel, ConfigurationModel configurationModel, Event muleEvent);
 
   /**
    * Locates and returns the {@link ConfigurationProvider} which would serve an invocation to the
-   * {@link #getConfiguration(ExtensionModel, Event)} method.
+   * {@link #getConfiguration(ExtensionModel, ConfigurationModel, Event)} method.
    * <p>
    * This means that the returned provider will be located using the same set of rules as the aforementioned method
    *
    * @param extensionModel the {@link ExtensionModel} for which a configuration is wanted
+   * @param configurationModel the {@link ConfigurationModel} associated to the {@link ConfigurationProvider}
    * @return an {@link Optional} {@link ConfigurationProvider}
    */
-  Optional<ConfigurationProvider> getConfigurationProvider(ExtensionModel extensionModel);
+  Optional<ConfigurationProvider> getConfigurationProvider(ExtensionModel extensionModel, ConfigurationModel configurationModel);
 
   /**
    * Locates and returns the {@link ConfigurationProvider} which would serve an invocation to the
@@ -123,7 +125,7 @@ public interface ExtensionManager {
 
   /**
    * Registered the given {@link ConfigurationProvider} which should be later be used to serve invocations to
-   * {@link #getConfigurationProvider(ExtensionModel)} and {@link #getConfiguration(String, Event)}
+   * {@link #getConfigurationProvider(ExtensionModel, ConfigurationModel)} and {@link #getConfiguration(String, Event)}
    *
    * @param configurationProvider a {@link ConfigurationProvider}
    */
