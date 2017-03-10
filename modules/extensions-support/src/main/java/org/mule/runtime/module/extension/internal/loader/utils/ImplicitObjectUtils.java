@@ -82,13 +82,12 @@ public final class ImplicitObjectUtils {
   }
 
   /**
-   * Returns whether the given model can be used implicitly. That means that all of its parameters which are non optional have
-   * associated a default value.
+   * Returns whether the given model can be used implicitly. That means that all of its parameters are optional.
    * 
    * @param parameterizedModel model
    * @return whether the given model can be used implicitly or not.
    */
   public static boolean canBeUsedImplicitly(ParameterizedModel parameterizedModel) {
-    return parameterizedModel.getAllParameterModels().stream().noneMatch(p -> p.isRequired() && p.getDefaultValue() == null);
+    return parameterizedModel.getAllParameterModels().stream().noneMatch(ParameterModel::isRequired);
   }
 }

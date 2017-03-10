@@ -177,7 +177,8 @@ public final class DefaultExtensionManager implements ExtensionManager, MuleCont
     if (matches == 1) {
       return providers.stream().findFirst();
     } else if (matches > 1) {
-      throw new TooManyConfigsException("Too many configs found", extensionModel, matches);
+      throw new TooManyConfigsException("Too many configs of type '" + configurationModel.getName() + "' found for ",
+                                        extensionModel, configurationModel, matches);
     }
 
     return Optional.empty();
