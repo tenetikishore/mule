@@ -7,6 +7,7 @@
 package org.mule.runtime.module.extension.internal.runtime;
 
 import static java.lang.String.format;
+import static java.util.Collections.reverseOrder;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
 import static java.util.Optional.ofNullable;
@@ -15,6 +16,7 @@ import static org.mule.runtime.api.metadata.resolving.MetadataFailure.Builder.ne
 import static org.mule.runtime.api.metadata.resolving.MetadataResult.failure;
 import static org.mule.runtime.core.util.ClassUtils.withContextClassLoader;
 import static org.mule.runtime.core.util.TemplateParser.createMuleStyleParser;
+import static org.mule.runtime.extension.api.util.ExtensionModelUtils.canBeUsedImplicitly;
 import static org.mule.runtime.extension.api.util.ExtensionModelUtils.getConfigurationForComponent;
 import static org.mule.runtime.extension.api.util.NameUtils.hyphenize;
 import static org.mule.runtime.module.extension.internal.util.MuleExtensionUtils.getClassLoader;
@@ -28,6 +30,7 @@ import org.mule.runtime.api.meta.AbstractAnnotatedObject;
 import org.mule.runtime.api.meta.model.ComponentModel;
 import org.mule.runtime.api.meta.model.ExtensionModel;
 import org.mule.runtime.api.meta.model.config.ConfigurationModel;
+import org.mule.runtime.api.meta.model.parameter.ParameterizedModel;
 import org.mule.runtime.api.metadata.MetadataContext;
 import org.mule.runtime.api.metadata.MetadataKey;
 import org.mule.runtime.api.metadata.MetadataKeyProvider;
@@ -55,6 +58,7 @@ import org.mule.runtime.extension.api.declaration.type.ExtensionsTypeLoaderFacto
 import org.mule.runtime.extension.api.exception.IllegalModelDefinitionException;
 import org.mule.runtime.extension.api.runtime.ConfigurationInstance;
 import org.mule.runtime.extension.api.runtime.ConfigurationProvider;
+import org.mule.runtime.extension.api.util.ExtensionModelUtils;
 import org.mule.runtime.module.extension.internal.metadata.MetadataMediator;
 import org.mule.runtime.module.extension.internal.runtime.config.DynamicConfigurationProvider;
 import org.mule.runtime.module.extension.internal.runtime.exception.TooManyConfigsException;
@@ -338,8 +342,15 @@ public abstract class ExtensionComponent<T extends ComponentModel<T>> extends Ab
     return empty();
   }
 
+  /**
+   * Returns a (if any) {@link ConfigurationModel} that is suitable for the {@link ComponentModel}. If there are more than one
+   * {@link ConfigurationModel} that can be used by this component, the ones that can be used implicitly (according to
+   * {@link ExtensionModelUtils#canBeUsedImplicitly(ParameterizedModel)}) will be prioritized.
+   */
   private Optional<ConfigurationModel> computeConfig() {
-    return getConfigurationForComponent(extensionModel, componentModel);
+    return getConfigurationForComponent(extensionModel, componentModel).stream().sorted(reverseOrder((x, y) -> Boolean
+        .compare(canBeUsedImplicitly(x), canBeUsedImplicitly(y))))
+        .findFirst();
   }
 
   private Optional<ConfigurationProvider> getConfigurationProviderByModel(ConfigurationModel configurationModel) {
