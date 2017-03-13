@@ -7,6 +7,8 @@
 package org.mule.runtime.module.extension.internal;
 
 import static java.util.Arrays.asList;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 
 import java.util.Collection;
 
@@ -17,13 +19,16 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class ImplicitExclusiveConfigTestCase extends AbstractImplicitExclusiveConfigTestCase {
 
-  @Parameterized.Parameter
+  @Parameterized.Parameter(value = 0)
   public String configName;
+
+  @Parameterized.Parameter(value = 1)
+  public int parameterValue;
 
   @Parameterized.Parameters(name = "{0}")
   public static Collection<Object[]> data() {
-    return asList(new Object[][] {{"implicit-exclusive-config.xml"}, {"multiple-implicit-exclusive-config.xml"},
-        {"implicit-exclusive-config-with-declared-configs.xml"}});
+    return asList(new Object[][] {{"implicit-exclusive-config.xml", 10}, {"multiple-implicit-exclusive-config.xml", 5},
+        {"implicit-exclusive-config-with-declared-configs.xml", 10}});
   }
 
   @Override
@@ -33,6 +38,7 @@ public class ImplicitExclusiveConfigTestCase extends AbstractImplicitExclusiveCo
 
   @Test
   public void getImplicitConfig() throws Exception {
-    flowRunner("implicitConfig").run();
+    Integer value = (Integer) flowRunner("implicitConfig").run().getMessage().getPayload().getValue();
+    assertThat(value, is(parameterValue));
   }
 }

@@ -6,8 +6,10 @@
  */
 package org.mule.runtime.module.extension.internal.runtime.config;
 
+import static java.lang.String.format;
 import static org.mule.runtime.extension.api.util.ExtensionModelUtils.getConnectedComponents;
 import static org.mule.runtime.module.extension.internal.loader.utils.ImplicitObjectUtils.buildImplicitResolverSet;
+import static org.mule.runtime.extension.api.util.ExtensionModelUtils.canBeUsedImplicitly;
 import org.mule.runtime.api.exception.MuleException;
 import org.mule.runtime.api.exception.MuleRuntimeException;
 import org.mule.runtime.api.meta.model.ExtensionModel;
@@ -40,12 +42,14 @@ public final class DefaultImplicitConfigurationProviderFactory implements Implic
                                                                    Event event,
                                                                    MuleContext muleContext) {
     if (implicitConfigurationModel == null) {
-      throw new IllegalStateException(String.format(
-                                                    "Could not find a config for extension '%s' and none can be created automatically. Please define one",
-                                                    extensionModel.getName()));
+      throw new IllegalStateException("Could not find a config for extension '" + extensionModel.getName()
+          + "' and none can be created automatically. Please define one");
+    } else if (!canBeUsedImplicitly(implicitConfigurationModel)) {
+      throw new IllegalStateException("Configuration model '" + extensionModel.getName()
+          + "' cannot be used implicitly. Please define one");
     }
 
-    final String providerName = String.format("%s-%s", extensionModel.getName(), implicitConfigurationModel.getName());
+    final String providerName = format("%s-%s", extensionModel.getName(), implicitConfigurationModel.getName());
     final ResolverSet resolverSet =
         buildImplicitResolverSet(implicitConfigurationModel, muleContext);
     try {

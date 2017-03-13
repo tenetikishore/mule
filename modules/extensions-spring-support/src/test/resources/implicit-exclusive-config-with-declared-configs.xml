@@ -6,7 +6,7 @@
                http://www.mulesoft.org/schema/mule/implicit http://www.mulesoft.org/schema/mule/implicit/current/mule-implicit.xsd">
 
     <implicit:blaconf name="blaexplicit"/>
-    <implicit:bleconf name="bleexplicit"/>
+    <implicit:bleconf name="bleexplicit" number="10"/>
 
     <flow name="implicitConfig">
         <implicit:bla/>

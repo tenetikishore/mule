@@ -9,12 +9,13 @@ package org.mule.runtime.module.extension.internal.runtime;
 import static java.lang.String.format;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
+import static java.util.Optional.ofNullable;
 import static org.mule.runtime.api.i18n.I18nMessageFactory.createStaticMessage;
 import static org.mule.runtime.api.metadata.resolving.MetadataFailure.Builder.newFailure;
 import static org.mule.runtime.api.metadata.resolving.MetadataResult.failure;
 import static org.mule.runtime.core.util.ClassUtils.withContextClassLoader;
 import static org.mule.runtime.core.util.TemplateParser.createMuleStyleParser;
-import static org.mule.runtime.extension.api.util.ExtensionModelUtils.getConfigurationFromComponent;
+import static org.mule.runtime.extension.api.util.ExtensionModelUtils.getConfigurationForComponent;
 import static org.mule.runtime.extension.api.util.NameUtils.hyphenize;
 import static org.mule.runtime.module.extension.internal.util.MuleExtensionUtils.getClassLoader;
 import static org.mule.runtime.module.extension.internal.util.MuleExtensionUtils.getInitialiserEvent;
@@ -312,13 +313,13 @@ public abstract class ExtensionComponent<T extends ComponentModel<T>> extends Ab
 
     if (isConfigurationSpecified()) {
       return findConfigurationProvider()
-          .map(provider -> Optional.ofNullable(provider.get(event)))
+          .map(provider -> ofNullable(provider.get(event)))
           .orElseThrow(() -> new IllegalModelDefinitionException(format(
                                                                         "Flow '%s' contains a reference to config '%s' but it doesn't exists",
                                                                         flowConstruct.getName(), configurationProvider)));
     }
 
-    return Optional.ofNullable(getConfigurationProviderByModel(configurationModel.get().get())
+    return ofNullable(getConfigurationProviderByModel(configurationModel.get().get())
         .map(provider -> provider.get(event))
         .orElseGet(() -> extensionManager.getConfiguration(extensionModel, configurationModel.get().get(), event)));
   }
@@ -338,7 +339,7 @@ public abstract class ExtensionComponent<T extends ComponentModel<T>> extends Ab
   }
 
   private Optional<ConfigurationModel> computeConfig() {
-    return getConfigurationFromComponent(extensionModel, componentModel);
+    return getConfigurationForComponent(extensionModel, componentModel);
   }
 
   private Optional<ConfigurationProvider> getConfigurationProviderByModel(ConfigurationModel configurationModel) {

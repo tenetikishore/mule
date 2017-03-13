@@ -12,6 +12,8 @@ import org.mule.runtime.extension.api.annotation.Configurations;
 import org.mule.runtime.extension.api.annotation.Extension;
 import org.mule.runtime.extension.api.annotation.Operations;
 import org.mule.runtime.extension.api.annotation.dsl.xml.Xml;
+import org.mule.runtime.extension.api.annotation.param.Optional;
+import org.mule.runtime.extension.api.annotation.param.Parameter;
 import org.mule.runtime.extension.api.annotation.param.UseConfig;
 
 public abstract class AbstractImplicitExclusiveConfigTestCase extends ExtensionFunctionalTestCase {
@@ -23,7 +25,7 @@ public abstract class AbstractImplicitExclusiveConfigTestCase extends ExtensionF
 
   @Extension(name = "implicit")
   @Xml(namespace = "http://www.mulesoft.org/schema/mule/implicit", prefix = "implicit")
-  @Configurations(value = {BlaConfig.class, BleConfig.class})
+  @Configurations(value = {BlaConfig.class, BleConfig.class, NonImplicitConfig.class})
   public static class ImplicitExclusiveConfigExtension {
   }
 
@@ -34,13 +36,40 @@ public abstract class AbstractImplicitExclusiveConfigTestCase extends ExtensionF
 
   public static class BleOperations {
 
-    public void ble(@UseConfig BleConfig ble) {}
+    public int ble(@UseConfig ConfigWithNumber ble) {
+      return ble.getNumber();
+    }
+  }
+
+  public static abstract class ConfigWithNumber {
+
+    abstract int getNumber();
   }
 
   @Operations({BleOperations.class})
   @Configuration(name = "bleconf")
-  public static class BleConfig {
+  public static class BleConfig extends ConfigWithNumber {
 
+    public int getNumber() {
+      return number;
+    }
+
+    @Parameter
+    @Optional(defaultValue = "5")
+    int number;
+
+  }
+
+  @Operations({BleOperations.class})
+  @Configuration(name = "nonimplicit")
+  public static class NonImplicitConfig extends ConfigWithNumber {
+
+    @Parameter
+    int number;
+
+    public int getNumber() {
+      return number;
+    }
   }
 
   @Operations({BlaOperations.class})
